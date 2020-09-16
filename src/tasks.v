@@ -11,7 +11,51 @@
 `endif
 
 
+/*
+    Verifica si la señal Q genera la salida correcta en base a las entradas
+    enable-reset.
+*/
+task verificar_enable_reset
+(
+    input enable, 
+    input reset, 
+    input [3:0] Q,
+    output reg enable_reset_fallo //Si es 1 indica que Q falló la prueba. 
+); 
+    integer temp;
 
+    begin
+                
+        if ( enable === `DESACTIVADO && reset === `DESACTIVADO )
+        begin  
+            enable_reset_fallo = ( Q === `HiZ )? `BAJO:`ALTO;   
+        end
+
+        else if ( enable ===  `DESACTIVADO && reset === `ACTIVO )
+        begin
+            enable_reset_fallo = ( Q === `BAJO )? `BAJO:`ALTO;           
+        end       
+
+        else if ( enable === `ACTIVO && reset === `DESACTIVADO )
+        begin
+            enable_reset_fallo = ( Q === `HiZ )? `ALTO:`BAJO; 
+        end
+
+        else if ( enable === `ACTIVO && reset === `ACTIVO )
+        begin        
+            enable_reset_fallo = ( Q == `BAJO )? `BAJO:`ALTO; 
+        end
+  
+    end
+
+endtask
+
+
+
+/*
+    Recibe la salida Q del contador y su valor anterior para determinar si
+    el valor es el correcto.
+*/
 task verificar_Q
 (
     input enable, 
@@ -23,66 +67,49 @@ task verificar_Q
     
     output reg Q_fallo //Si es 1 indica que Q falló la prueba. 
 ); 
-    begin
-        /**/
-        if ( enable === `DESACTIVADO && reset === `DESACTIVADO )
-        begin  
-            Q_fallo <= ( Q === `HiZ )? `BAJO:`ALTO;   
-        end
+    integer temp;
 
+    begin     
+     
         /**/
-        else if ( enable ===  `DESACTIVADO && reset === `ACTIVO )
-        begin
-            Q_fallo <= ( Q === `BAJO )? `BAJO:`ALTO;           
-        end
-
-
-        /**/
-        else if ( enable === `ACTIVO && reset === `DESACTIVADO )
+        if ( enable === `ACTIVO && reset === `DESACTIVADO )
         
             case (mode)
 
                 `CUENTA_TRES_TRES: 
                 begin 
-                    Q_anterior += 3;   
-                    Q_fallo <= ( Q === Q_anterior )? `BAJO:`ALTO;                  
+                    temp = (Q_anterior+3)&(4'b1111);
+                    Q_fallo = ( Q == temp && temp !== 4'bx )? `BAJO:`ALTO;                  
                 end
 
                 `CUENTA_MENOS_UNO: 
                 begin
-                    Q_anterior -= 1;    
-                    Q_fallo <= ( Q === Q_anterior )? `BAJO:`ALTO;                                       
+                    temp = (Q_anterior-1)&(4'b1111);   
+                    Q_fallo = ( Q == temp && temp !== 4'bx )? `BAJO:`ALTO;                                       
                 end
 
                 `CUENTA_MAS_UNO: 
                 begin
-                    Q_anterior += 1;    
-                    Q_fallo <= ( Q === Q_anterior )? `BAJO:`ALTO;
+                    temp = (Q_anterior+1)&(4'b1111);   
+                    Q_fallo = ( Q == temp && temp !== 4'bx )? `BAJO:`ALTO;
                 end
 
                 `CARGA_D: 
                 begin
-                    Q_fallo <= ( Q === D )? `BAJO:`ALTO;                
+                    Q_fallo = ( Q == D && temp !== 4'bx )? `BAJO:`ALTO;                
                 end
 
                 default: $display ("Error: Ese modo no existe!");
-            endcase 
-        
-
-    
-
-        /**/
-        else if ( enable === `ACTIVO && reset === `ACTIVO )
-        begin        
-            Q_fallo <= ( Q === `BAJO )? `BAJO:`ALTO; 
-        end
-  
+            endcase  
     end
 
 endtask
 
 
-
+/*
+    Recibe la salida load del contador para determinar si
+    el valor es el correcto.
+*/
 task verificar_LOAD
 (
     input enable, 
@@ -93,21 +120,17 @@ task verificar_LOAD
     output reg load_fallo //Si es 1 indica que load falló la prueba.
  ); 
     begin
-        /**/
+
         if ( enable === `DESACTIVADO && reset === `DESACTIVADO )
         begin
             load_fallo = ( load !== `BAJO )? `ALTO:`BAJO;            
         end
 
-
-        /**/
         if ( enable ===  `DESACTIVADO && reset === `ACTIVO )
         begin
             load_fallo = ( load !== `BAJO )? `ALTO:`BAJO;        
         end
 
-
-        /**/
         if ( enable === `ACTIVO && reset === `DESACTIVADO )
 
             case (mode)
@@ -137,11 +160,9 @@ task verificar_LOAD
 
 
                 default:
-                    $display ("adasdsdsad");
+                    $display ("ERROR: Ese modo no existe!");
             endcase  
 
-
-        /**/
         if ( enable === `ACTIVO && reset === `ACTIVO )
         begin
             load_fallo = ( load !== `BAJO )? `ALTO:`BAJO;
@@ -152,95 +173,61 @@ task verificar_LOAD
 endtask
 
 
-
-
-
-
+/*
+    Recibe la salida rco del contador para determinar si
+    el valor es el correcto.
+*/
 task verificar_rco
 (
+    input [3:0] mode,
     input [3:0] Q,
     input [3:0] Q_anterior,
     input rco,
 
-    output rco_fallo //Si es 1 indica que rco falló la prueba.
+    output reg rco_fallo //Si es 1 indica que rco falló la prueba.
 );
     begin
-        
-        if ( Q_anterior === `Qmax && Q === `Qmin )
+
+        if (mode == `CARGA_D)
         begin
-            rco_fallo = ( rco !== `ALTO )? `ALTO:`BAJO;
+            if (rco != `BAJO) rco_fallo = `ALTO;
+            else rco_fallo = `BAJO;
         end
 
-        else if ( Q_anterior === `Qmin && Q === `Qmax )
+        else
         begin
-            rco_fallo = ( rco !== `ALTO )? `ALTO:`BAJO;
+            if ( Q_anterior === 4'hf && Q === 4'h0 )
+            begin
+                rco_fallo <= ( rco !== `ALTO )? `ALTO:`BAJO;
+            end
+
+            else if ( Q_anterior === 4'h0 && Q === 4'hf )
+            begin
+                rco_fallo <= ( rco !== `ALTO )? `ALTO:`BAJO;
+            end
+
+            else if ( Q_anterior === 4'hD && Q === 4'h0 )
+            begin
+                rco_fallo <= ( rco !== `ALTO )? `ALTO:`BAJO;
+            end
+
+            else if ( Q_anterior === 4'hE && Q === 4'h1 )
+            begin
+                rco_fallo <= ( rco !== `ALTO )? `ALTO:`BAJO;
+            end
+
+            else if ( Q_anterior === 4'hF && Q === 4'h2 )
+            begin
+                rco_fallo <= ( rco !== `ALTO )? `ALTO:`BAJO;
+            end
+
+            else
+            begin
+                rco_fallo <= ( rco !== `ALTO && rco !== 1'bz && rco !== 1'bx )? `BAJO:`ALTO;
+            end
+
         end
 
     end
 
-endtask
-
-
-
-task display
-(
-    input Q_fallo_final, 
-    input rco_fallo_final,
-    input load_fallo_final
-);
-    begin
-
-        if ( Q_fallo_final == 1 )
-        begin
-            $display("%c[1;31m",27);
-            $display("***************************************");
-            $display("******** Q no pasó las pruebas ********");
-            $display("***************************************");
-            $display("%c[0m",27);            
-        end
-        else
-        begin
-            $display("%c[1;34m",27);
-            $display("***************************************");
-            $display("********* Q pasó las pruebas **********");
-            $display("***************************************");
-            $write("%c[0m",27);
-        end
-
-
-        if ( rco_fallo_final == 1 )
-        begin
-            $display("%c[1;31m",27);
-            $display("***************************************");
-            $display("******* rco no pasó las pruebas *******");
-            $display("***************************************");
-            $display("%c[0m",27);            
-        end
-        else
-        begin
-            $display("%c[1;34m",27);
-            $display("***************************************");
-            $display("******** rco pasó las pruebas *********");
-            $display("***************************************");
-            $write("%c[0m",27);
-        end
-
-        if ( load_fallo_final == 1 )
-        begin
-            $display("%c[1;31m",27);
-            $display("***************************************");
-            $display("****** load no pasó las pruebas *******");
-            $display("***************************************");
-            $display("%c[0m",27);            
-        end
-        else
-        begin
-            $display("%c[1;34m",27);
-            $display("***************************************");
-            $display("******* load pasó las pruebas *********");
-            $display("***************************************");
-            $write("%c[0m",27);
-        end
-
-    end
 endtask

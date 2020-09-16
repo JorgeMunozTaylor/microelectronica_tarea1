@@ -19,7 +19,4 @@
 `define ALTO 1'b1
 `define BAJO 1'b0
 
-`define Qmax 4'b1111  
-`define Qmin 4'b0000
-
-`define TIEMPO 2400
+`define TIEMPO 2800

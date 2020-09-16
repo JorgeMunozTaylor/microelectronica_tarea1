@@ -9,8 +9,13 @@
 `timescale 1ns/1ps
 
 `include "./test/test_1.v"
+`include "./test/checker.v"
 `include "./src/contadorA.v"
 
+/*
+    Testbench que se usará para el contador A, simplemente conecta todos los
+    módulos, indica cuando acaba la simulación y genera el archivo VCD.
+*/
 module testbench;
 
     wire       enable; 
@@ -18,10 +23,19 @@ module testbench;
     wire       reset; 
     wire [1:0] mode; 
     wire [3:0] D;
-
     wire       load; 
     wire       rco; 
     wire [3:0] Q;
+
+
+    test_1 #( .FILE("./logs/log_A.txt") ) TEST_1
+    (
+        .enable (enable), 
+        .clk    (clk), 
+        .reset  (reset), 
+        .mode   (mode), 
+        .D      (D)
+    );
 
 
     counter DUV 
@@ -37,23 +51,22 @@ module testbench;
     );
 
 
-    test_1 TEST_1
+    checker CHECK
     (
         .enable (enable), 
         .clk    (clk), 
         .reset  (reset), 
         .mode   (mode), 
-        .D      (D), 
+        .D      (D),
         .load   (load), 
         .rco    (rco), 
         .Q      (Q)
     );
- 
+
 
     initial
     begin
         $dumpfile("./bin/prueba_A.vcd");
-        //$dumpvars(0, clk, enable, reset, mode, D, load, rco, Q );
         $dumpvars;
         #`TIEMPO $finish;
     end

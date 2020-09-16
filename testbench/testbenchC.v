@@ -8,9 +8,14 @@
 
 `timescale 1ns/1ps
 
-`include "../test/test_1.v"
-`include "../src/contadorC.v"
+`include "./test/test_1.v"
+`include "./test/checker.v"
+`include "./src/contadorC.v"
 
+/*
+    Testbench que se usará para el contador C, simplemente conecta todos los
+    módulos, indica cuando acaba la simulación y genera el archivo VCD.
+*/
 module testbench;
 
     wire       enable; 
@@ -18,10 +23,19 @@ module testbench;
     wire       reset; 
     wire [1:0] mode; 
     wire [3:0] D;
-
     wire       load; 
     wire       rco; 
     wire [3:0] Q;
+
+
+    test_1 #( .FILE("./logs/log_C.txt") ) TEST_1
+    (
+        .enable (enable), 
+        .clk    (clk), 
+        .reset  (reset), 
+        .mode   (mode), 
+        .D      (D)
+    );
 
 
     counter DUV 
@@ -37,54 +51,24 @@ module testbench;
     );
 
 
-    test_1 TEST_1
+    checker #( .FILE("./logs/log_C.txt") ) CHECK
     (
         .enable (enable), 
         .clk    (clk), 
         .reset  (reset), 
         .mode   (mode), 
-        .D      (D), 
+        .D      (D),
         .load   (load), 
         .rco    (rco), 
         .Q      (Q)
     );
 
 
-
-
     initial
     begin
-        $dumpfile("../bin/prueba_C.vcd");
+        $dumpfile("./bin/prueba_C.vcd");
         $dumpvars;
-        #1000 $finish;
+        #`TIEMPO $finish;
     end
-
-
-    program clr_display();
-        class color ;
-            task display ();
-            begin
-                $display("%c[1;34m",27);
-                $display("***************************************");
-                $display("*********** TEST CASE PASS ************");
-                $display("***************************************");
-                $write("%c[0m",27);
-                
-                $display("%c[1;31m",27);
-                $display("***************************************");
-                $display("*********** TEST CASE FAIL ************");
-                $display("***************************************");
-                $display("%c[0m",27);
-            end
-            endtask
-        endclass
-
-        initial 
-        begin
-            color clr;
-            clr = new ();
-            clr.display ();
-        end
-    endprogram
 
 endmodule
